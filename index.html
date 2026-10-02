@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#172230">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AUT C-Map">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="icon" href="icon.svg">
+<title>AUT C-Map Time Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one column field tool, max 520px. Sticky total bar on top, stacked panels below, job list at the bottom. */
+:root{
+  --bg:#EFF2F6; --surface:#FFFFFF; --surface-2:#E6EBF1; --fg:#172230; --muted:#5E6B7A; --line:#D3DAE3;
+  --accent:#D4601A; --accent-fg:#FFFFFF; --accent-soft:#FBEADF;
+  --ok:#2E7D4F; --warn:#B7791F;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --radius:10px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E141B; --surface:#171F29; --surface-2:#1F2935; --fg:#E7ECF2; --muted:#98A4B2; --line:#2A3542;
+    --accent:#F08B47; --accent-fg:#1B1107; --accent-soft:#3B2415; --ok:#5DBB83; --warn:#E0A94A; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E141B; --surface:#171F29; --surface-2:#1F2935; --fg:#E7ECF2; --muted:#98A4B2; --line:#2A3542;
+  --accent:#F08B47; --accent-fg:#1B1107; --accent-soft:#3B2415; --ok:#5DBB83; --warn:#E0A94A; color-scheme:dark;
+}
+html{padding-top:env(safe-area-inset-top,0px);background:#172230}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.4;margin:0;-webkit-text-size-adjust:100%}
+button,input,select{font:inherit;color:inherit}
+.wrap{max-width:520px;margin:0 auto;padding-inline:16px;padding-block:0 32px;display:flex;flex-direction:column;gap:14px}
+
+/* Sticky total bar */
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--fg);color:var(--bg);margin-inline:-16px;padding:12px 16px 12px;display:grid;grid-template-columns:1fr auto;gap:2px 12px;align-items:end;box-shadow:0 2px 10px rgba(0,0,0,.18)}
+.brand{font-family:var(--display);font-weight:700;font-size:20px;letter-spacing:.02em;text-transform:uppercase;line-height:1}
+.brand small{display:block;font-family:var(--body);font-weight:500;font-size:12px;letter-spacing:.08em;opacity:.7;margin-top:4px;text-transform:uppercase}
+.total{text-align:right;grid-row:1/3;display:flex;flex-direction:column;align-items:flex-end;justify-content:center}
+.total-num{font-family:var(--display);font-weight:700;font-size:54px;line-height:.9;font-variant-numeric:tabular-nums;color:var(--accent)}
+.total-lbl{font-size:12px;letter-spacing:.1em;text-transform:uppercase;opacity:.75;margin-top:4px}
+.total-sub{font-size:13px;opacity:.8;font-variant-numeric:tabular-nums;align-self:end}
+
+/* Panels */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
+.panel h2{font-family:var(--display);font-weight:600;font-size:15px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>*{flex:1 1 140px;min-width:0}
+.field{display:flex;flex-direction:column;gap:4px}
+.lbl{font-size:13px;font-weight:600;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+.lbl em{font-style:normal;font-weight:500;opacity:.8}
+input[type=number],select{width:100%;min-height:48px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);font-size:22px;font-family:var(--display);font-weight:600;font-variant-numeric:tabular-nums}
+select{font-size:18px}
+input[type=number]:focus,select:focus,button:focus-visible,input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+input[type=text]{width:100%;min-height:48px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);font-size:16px}
+.hint{font-size:12.5px;color:var(--muted);margin:6px 0 0}
+
+/* Segmented control */
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;background:var(--surface-2);border-radius:9px;padding:4px}
+.seg button{min-height:44px;border:0;border-radius:6px;background:transparent;font-weight:600;font-size:15px;cursor:pointer;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+
+/* Chips */
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.chips button{min-height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-size:14px;font-weight:600;cursor:pointer;font-variant-numeric:tabular-nums}
+.chips button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+
+/* Range */
+.rangewrap{display:grid;grid-template-columns:1fr 72px;gap:10px;align-items:center}
+input[type=range]{width:100%;accent-color:var(--accent);min-height:44px}
+.rangeval{font-family:var(--display);font-weight:700;font-size:26px;text-align:right;font-variant-numeric:tabular-nums}
+
+/* Breakdown */
+.bd{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.bd td{padding:8px 0;border-bottom:1px solid var(--line);font-size:15px;vertical-align:top}
+.bd td:last-child{text-align:right;font-weight:600;white-space:nowrap}
+.bd tr:last-child td{border-bottom:0}
+.bd tr.sum td{font-family:var(--display);font-size:20px;font-weight:700;color:var(--accent);padding-top:12px}
+.bd .sub{display:block;font-size:12.5px;color:var(--muted);font-weight:400}
+
+/* Buttons */
+.btn{min-height:48px;padding:0 18px;border-radius:8px;border:1px solid var(--line);background:var(--surface-2);font-weight:600;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn.ghost{background:transparent}
+.btn.small{min-height:36px;padding:0 12px;font-size:14px}
+
+/* Job list */
+.job{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.job li{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2)}
+.job .jn{font-weight:600}
+.job .js{grid-column:1;font-size:12.5px;color:var(--muted)}
+.job .jh{font-family:var(--display);font-weight:700;font-size:22px;font-variant-numeric:tabular-nums;grid-row:1/3}
+.job .jx{grid-row:1/3;min-height:36px;min-width:36px;border:0;background:transparent;color:var(--muted);font-size:20px;cursor:pointer;border-radius:6px}
+.jobtotal{display:flex;justify-content:space-between;align-items:baseline;margin-top:12px;padding-top:10px;border-top:2px solid var(--fg)}
+.jobtotal b{font-family:var(--display);font-size:30px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
+.empty{color:var(--muted);font-size:14px;padding:8px 0}
+details.panel summary{cursor:pointer;font-family:var(--display);font-weight:600;font-size:15px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);list-style:none;display:flex;justify-content:space-between}
+details.panel summary::after{content:"+";font-size:20px;line-height:1}
+details.panel[open] summary::after{content:"\2013"}
+details.panel[open] summary{margin-bottom:10px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:600;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion: reduce){.toast{transition:none}}
+.flag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:4px;background:var(--accent-soft);color:var(--accent)}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="topbar">
+    <div class="brand">AUT C-Map<small>Corrosion mapping time</small></div>
+    <div class="total"><div class="total-num" id="totalHrs">0.0</div><div class="total-lbl">hours total</div></div>
+    <div class="total-sub" id="totalSub"></div>
+  </header>
+
+  <section class="panel" aria-labelledby="h-comp">
+    <h2 id="h-comp">Component</h2>
+    <div class="seg" id="shape" role="group" aria-label="Component shape">
+      <button type="button" data-v="vessel" aria-pressed="true">Vessel</button>
+      <button type="button" data-v="pipe">Pipe</button>
+      <button type="button" data-v="plate">Plate</button>
+      <button type="button" data-v="head">Head</button>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <div class="field" id="f-nps" hidden>
+        <span class="lbl"><span>Pipe size</span><em>NPS</em></span>
+        <select id="nps"></select>
+      </div>
+      <div class="field" id="f-headtype" hidden>
+        <span class="lbl"><span>Head type</span></span>
+        <select id="headtype">
+          <option value="ell">2:1 Ellipsoidal</option>
+          <option value="hemi">Hemispherical</option>
+          <option value="flat">Flat / Torispherical (approx.)</option>
+        </select>
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label class="field" id="f-diam"><span class="lbl"><span>Diameter (OD)</span><em id="u-diam">in</em></span><input id="diam" type="number" inputmode="decimal" step="any" min="0"></label>
+      <label class="field" id="f-len"><span class="lbl"><span>Length</span><em id="u-len">ft</em></span><input id="len" type="number" inputmode="decimal" step="any" min="0"></label>
+      <label class="field" id="f-w" hidden><span class="lbl"><span>Width</span><em id="u-w">ft</em></span><input id="w" type="number" inputmode="decimal" step="any" min="0"></label>
+      <label class="field" id="f-h" hidden><span class="lbl"><span>Height</span><em id="u-h">ft</em></span><input id="h" type="number" inputmode="decimal" step="any" min="0"></label>
+      <label class="field"><span class="lbl"><span>Quantity</span><em>pcs</em></span><input id="qty" type="number" inputmode="numeric" step="1" min="1"></label>
+    </div>
+    <div class="row" style="margin-top:10px;align-items:center">
+      <div class="field">
+        <span class="lbl"><span>Units</span></span>
+        <div class="seg" id="units" role="group" aria-label="Units">
+          <button type="button" data-v="imp" aria-pressed="true">in / ft</button>
+          <button type="button" data-v="met">mm / m</button>
+        </div>
+      </div>
+      <div class="field">
+        <span class="lbl"><span>Coverage</span><em id="covval">100%</em></span>
+        <input id="cov" type="range" min="5" max="100" step="5">
+      </div>
+    </div>
+    <p class="hint" id="areahint"></p>
+  </section>
+
+  <section class="panel" aria-labelledby="h-scan">
+    <h2 id="h-scan">Scan settings</h2>
+    <div class="row">
+      <label class="field"><span class="lbl"><span>Index resolution</span><em id="u-idx">in</em></span><input id="idx" type="number" inputmode="decimal" step="any" min="0"></label>
+      <label class="field"><span class="lbl"><span>Scan speed</span><em id="u-spd">in/s</em></span><input id="spd" type="number" inputmode="decimal" step="any" min="0"></label>
+    </div>
+    <div class="chips" id="idxchips" aria-label="Common index values"></div>
+    <div class="chips" id="spdchips" aria-label="Common scan speeds"></div>
+    <p class="hint">Index is the step between strokes. Speed is how fast the probe travels along a stroke.</p>
+  </section>
+
+  <section class="panel" aria-labelledby="h-job">
+    <h2 id="h-job">Field factors</h2>
+    <div class="field">
+      <span class="lbl"><span>Scanner efficiency</span><em>share of time actually scanning</em></span>
+      <div class="rangewrap"><input id="eff" type="range" min="20" max="100" step="5"><div class="rangeval" id="effval">40%</div></div>
+      <div class="chips" id="effchips"></div>
+      <p class="hint">Covers indexing, turnarounds, couplant, repositioning and re-scans. The master spreadsheet works out to 40%.</p>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <label class="field"><span class="lbl"><span>Setup + teardown</span><em>hr</em></span><input id="setup" type="number" inputmode="decimal" step="0.5" min="0"></label>
+      <label class="field"><span class="lbl"><span>Scanners running</span><em>crews</em></span><input id="crews" type="number" inputmode="numeric" step="1" min="1"></label>
+      <label class="field"><span class="lbl"><span>Shift length</span><em>hr</em></span><input id="shift" type="number" inputmode="decimal" step="0.5" min="1"></label>
+    </div>
+  </section>
+
+  <details class="panel" id="adv">
+    <summary>Advanced</summary>
+    <div class="field">
+      <span class="lbl"><span>Stroke direction</span></span>
+      <div class="seg" id="dir" role="group" aria-label="Stroke direction">
+        <button type="button" data-v="axial" aria-pressed="true">Axial strokes, index around</button>
+        <button type="button" data-v="circ">Circ strokes, index along</button>
+      </div>
+      <p class="hint">Ideal scan time is the same either way. Direction changes the stroke count, which matters when turnaround time is above zero.</p>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <label class="field"><span class="lbl"><span>Turnaround per stroke</span><em>s</em></span><input id="turn" type="number" inputmode="decimal" step="0.5" min="0"></label>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button type="button" class="btn ghost small" id="reset">Reset to spreadsheet example</button>
+    </div>
+  </details>
+
+  <section class="panel" aria-labelledby="h-bd">
+    <h2 id="h-bd">Breakdown</h2>
+    <table class="bd" id="bd"></table>
+  </section>
+
+  <section class="panel" aria-labelledby="h-list">
+    <h2 id="h-list">Job list</h2>
+    <div class="row">
+      <input id="itemname" type="text" placeholder="Item name, e.g. V-101 shell" autocomplete="off">
+      <button type="button" class="btn primary" id="add" style="flex:0 0 auto">Add to job</button>
+    </div>
+    <ul class="job" id="joblist" style="margin-top:12px"></ul>
+    <p class="empty" id="jobempty">Nothing added yet. Set up a component above and tap Add to job. Items stay on this phone.</p>
+    <div class="jobtotal" id="jobtotal" hidden><span id="jobtotalLbl">Job total</span><b id="jobtotalHrs">0.0 hr</b></div>
+    <div class="row" style="margin-top:12px">
+      <button type="button" class="btn" id="copy">Copy summary</button>
+      <button type="button" class="btn ghost" id="clear">Clear job</button>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var NPS = [["1",1.315],["1-1/2",1.9],["2",2.375],["3",3.5],["4",4.5],["6",6.625],["8",8.625],["10",10.75],["12",12.75],["14",14],["16",16],["18",18],["20",20],["24",24],["30",30],["36",36],["42",42],["48",48]];
+  var IDX_IMP=[0.04,0.1,0.25,0.5,1], IDX_MET=[1,2,5,10,25];
+  var SPD_IMP=[3,6,10,20], SPD_MET=[75,150,250,500];
+  var EFF=[40,50,60,75,100];
+
+  // Spreadsheet example: 120 in dia x 40 ft, 0.25 in index, 20 in/s, 40% eff, +2 hr setup = 27.1 hr
+  var DEF = {shape:"vessel", units:"imp", diam:120, len:40, w:20, h:8, qty:1, cov:100, idx:0.25, spd:20, eff:40, setup:2, crews:1, shift:10, dir:"axial", turn:0, headtype:"ell", nps:"24"};
+  var S = load("aut-cmap-state") || JSON.parse(JSON.stringify(DEF));
+  if (window.claude && window.claude.hot && window.claude.hot.data && window.claude.hot.data.S) S = window.claude.hot.data.S;
+  var JOB = load("aut-cmap-job") || [];
+
+  function load(k){ try{ var v=localStorage.getItem(k); return v?JSON.parse(v):null; }catch(e){ return null; } }
+  function save(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+
+  // ---- Core calculation. All internal math in inches and seconds. ----
+  function calc(s){
+    var met = s.units==="met";
+    var toIn = met ? function(v){return v/25.4;} : function(v){return v;};        // small dims: mm or in
+    var toInBig = met ? function(v){return v*1000/25.4;} : function(v){return v*12;}; // big dims: m or ft
+    var D=toIn(num(s.diam)), L=toInBig(num(s.len)), W=toInBig(num(s.w)), H=toInBig(num(s.h));
+    var idx=toIn(num(s.idx)), v=toIn(num(s.spd)), qty=Math.max(1,Math.round(num(s.qty)||1));
+    var cov=num(s.cov)/100, eff=Math.max(0.05,num(s.eff)/100), crews=Math.max(1,Math.round(num(s.crews)||1));
+    var area=0, indexLen=0, strokeLen=0, label="";
+    if (s.shape==="vessel" || s.shape==="pipe"){
+      var C=Math.PI*D; area=C*L;
+      if (s.dir==="axial"){ indexLen=C; strokeLen=L; } else { indexLen=L; strokeLen=C; }
+      label = s.shape==="pipe" ? "Pipe OD surface" : "Shell surface";
+    } else if (s.shape==="plate"){
+      area=W*H; indexLen=W; strokeLen=H; if (s.dir==="circ"){ indexLen=H; strokeLen=W; }
+      label="Plate area";
+    } else {
+      var k = s.headtype==="hemi" ? Math.PI/2 : s.headtype==="ell" ? 1.084 : 0.931; // area factors x D^2
+      area=k*D*D; indexLen=D; strokeLen=area/D;
+      label = (s.headtype==="hemi"?"Hemispherical":s.headtype==="ell"?"2:1 ellipsoidal":"Torispherical") + " head area";
+    }
+    var scanArea=area*cov*qty;
+    var strokesOne = idx>0 ? indexLen/idx : 0;
+    var strokes = strokesOne*cov*qty;
+    var strokeTime = v>0 ? strokeLen/v : 0;
+    var rawSec = strokes*(strokeTime+num(s.turn));
+    var effSec = rawSec/eff;
+    var scanHrs = effSec/3600/crews;
+    var setup = num(s.setup);
+    var total = scanHrs+setup;
+    var shift = Math.max(0.5,num(s.shift)||10);
+    return {area:area*qty, scanArea:scanArea, strokes:strokes, strokeLen:strokeLen, strokeTime:strokeTime, rawHrs:rawSec/3600, effHrs:effSec/3600, scanHrs:scanHrs, setup:setup, total:total, shifts:total/shift, shift:shift, crews:crews, eff:eff, label:label, met:met, qty:qty};
+  }
+  function num(x){ var n=parseFloat(x); return isFinite(n)?n:0; }
+
+  // ---- Formatting ----
+  function fmtHrs(h){ if(!isFinite(h)) return "0.0 hr"; return (h<10?h.toFixed(2):h.toFixed(1))+" hr"; }
+  function fmtHM(h){ var m=Math.round(h*60); var hh=Math.floor(m/60), mm=m%60; return hh+"h "+(mm<10?"0":"")+mm+"m"; }
+  function fmtN(n,d){ return n.toLocaleString(undefined,{maximumFractionDigits:d==null?0:d}); }
+  function fmtArea(inSq, met){ return met ? fmtN(inSq*0.00064516,1)+" m²" : fmtN(inSq/144,0)+" ft²"; }
+  function fmtLen(inch, met){ return met ? fmtN(inch*0.0254,2)+" m" : fmtN(inch/12,1)+" ft"; }
+
+  // ---- Render ----
+  function render(){
+    var r = calc(S);
+    $("totalHrs").textContent = r.total<10 ? r.total.toFixed(2) : r.total.toFixed(1);
+    $("totalSub").textContent = fmtHrs(r.rawHrs)+" raw scan · "+fmtHrs(r.scanHrs)+" effective · "+r.shifts.toFixed(1)+" shifts @ "+r.shift+" hr";
+    $("areahint").textContent = r.label+": "+fmtArea(r.area, r.met)+(r.qty>1?" for "+r.qty+" pcs":"")+(S.cov<100?" · scanning "+fmtArea(r.scanArea,r.met)+" at "+S.cov+"%":"");
+    var rows = [
+      ["Surface area", fmtArea(r.area,r.met)],
+      ["Area scanned", fmtArea(r.scanArea,r.met), S.cov+"% coverage"],
+      ["Strokes", fmtN(r.strokes,0), "stroke length "+fmtLen(r.strokeLen,r.met)],
+      ["Time per stroke", fmtN(r.strokeTime+num(S.turn),1)+" s", num(S.turn)>0 ? "incl. "+num(S.turn)+" s turnaround" : null],
+      ["Raw scan time", fmtHrs(r.rawHrs), "100% efficiency"],
+      ["Effective scan time", fmtHrs(r.effHrs), "at "+S.eff+"% efficiency"],
+    ];
+    if (r.crews>1) rows.push(["Split across "+r.crews+" scanners", fmtHrs(r.scanHrs)]);
+    rows.push(["Setup + teardown", fmtHrs(r.setup)]);
+    rows.push(["Total", fmtHrs(r.total)+" ("+fmtHM(r.total)+")", null, true]);
+    rows.push(["Shifts", r.shifts.toFixed(1)+" × "+r.shift+" hr", Math.ceil(r.shifts)+" shift"+(Math.ceil(r.shifts)===1?"":"s")+" if rounded up"]);
+    var html="";
+    rows.forEach(function(x){ html+='<tr'+(x[3]?' class="sum"':'')+'><td>'+x[0]+(x[2]?'<span class="sub">'+x[2]+'</span>':'')+'</td><td>'+x[1]+'</td></tr>'; });
+    $("bd").innerHTML=html;
+    save("aut-cmap-state", S);
+    return r;
+  }
+
+  function syncUI(){
+    var met = S.units==="met";
+    ["diam","len","w","h","qty","idx","spd","setup","crews","shift","turn"].forEach(function(k){ if(document.activeElement!==$(k)) $(k).value=S[k]; });
+    $("cov").value=S.cov; $("covval").textContent=S.cov+"%";
+    $("eff").value=S.eff; $("effval").textContent=S.eff+"%";
+    $("headtype").value=S.headtype; $("nps").value=S.nps;
+    $("u-diam").textContent = met?"mm":"in"; $("u-idx").textContent = met?"mm":"in"; $("u-spd").textContent = met?"mm/s":"in/s";
+    ["u-len","u-w","u-h"].forEach(function(id){ $(id).textContent = met?"m":"ft"; });
+    setSeg("shape",S.shape); setSeg("units",S.units); setSeg("dir",S.dir);
+    var sh=S.shape;
+    $("f-nps").hidden = sh!=="pipe";
+    $("f-headtype").hidden = sh!=="head";
+    $("f-diam").hidden = sh==="plate";
+    $("f-len").hidden = !(sh==="vessel"||sh==="pipe");
+    $("f-w").hidden = sh!=="plate"; $("f-h").hidden = sh!=="plate";
+    var dirBtns=$("dir").querySelectorAll("button");
+    dirBtns[0].textContent = sh==="plate" ? "Vertical strokes, index across" : "Axial strokes, index around";
+    dirBtns[1].textContent = sh==="plate" ? "Horizontal strokes, index up" : "Circ strokes, index along";
+    chips("idxchips", met?IDX_MET:IDX_IMP, "idx", met?"mm":"in");
+    chips("spdchips", met?SPD_MET:SPD_IMP, "spd", met?"mm/s":"in/s");
+    chips("effchips", EFF, "eff", "%");
+    render();
+  }
+  function setSeg(id,val){ $(id).querySelectorAll("button").forEach(function(b){ b.setAttribute("aria-pressed", b.dataset.v===val ? "true":"false"); }); }
+  function chips(id, vals, key, unit){
+    var el=$(id); el.innerHTML="";
+    vals.forEach(function(v){
+      var b=document.createElement("button"); b.type="button"; b.textContent=v+(unit==="%"?"%":" "+unit);
+      b.setAttribute("aria-pressed", Math.abs(num(S[key])-v)<1e-9 ? "true":"false");
+      b.addEventListener("click",function(){ S[key]=v; syncUI(); });
+      el.appendChild(b);
+    });
+  }
+
+  // ---- Wire inputs ----
+  ["diam","len","w","h","qty","idx","spd","setup","crews","shift","turn"].forEach(function(k){
+    $(k).addEventListener("input",function(){ S[k]=this.value; render(); if(k==="idx"||k==="spd") refreshChipState(); });
+  });
+  function refreshChipState(){ var met=S.units==="met"; chips("idxchips", met?IDX_MET:IDX_IMP, "idx", met?"mm":"in"); chips("spdchips", met?SPD_MET:SPD_IMP, "spd", met?"mm/s":"in/s"); }
+  $("cov").addEventListener("input",function(){ S.cov=+this.value; $("covval").textContent=S.cov+"%"; render(); });
+  $("eff").addEventListener("input",function(){ S.eff=+this.value; $("effval").textContent=S.eff+"%"; chips("effchips",EFF,"eff","%"); render(); });
+  $("headtype").addEventListener("change",function(){ S.headtype=this.value; render(); });
+  $("nps").addEventListener("change",function(){ S.nps=this.value; var od=odFor(this.value); if(od){ S.diam = S.units==="met" ? round(od*25.4,1) : od; } syncUI(); });
+  function odFor(n){ for(var i=0;i<NPS.length;i++) if(NPS[i][0]===n) return NPS[i][1]; return null; }
+  function round(x,d){ var p=Math.pow(10,d); return Math.round(x*p)/p; }
+
+  $("shape").addEventListener("click",function(e){ var b=e.target.closest("button"); if(!b) return; S.shape=b.dataset.v; if(S.shape==="pipe"){ var od=odFor(S.nps); if(od) S.diam = S.units==="met"?round(od*25.4,1):od; } syncUI(); });
+  $("dir").addEventListener("click",function(e){ var b=e.target.closest("button"); if(!b) return; S.dir=b.dataset.v; syncUI(); });
+  $("units").addEventListener("click",function(e){
+    var b=e.target.closest("button"); if(!b||b.dataset.v===S.units) return;
+    var toMet = b.dataset.v==="met";
+    var f1 = toMet?25.4:1/25.4, f2 = toMet?0.3048:1/0.3048;
+    S.diam=round(num(S.diam)*f1,toMet?0:2); S.idx=round(num(S.idx)*f1,toMet?2:3); S.spd=round(num(S.spd)*f1,toMet?0:1);
+    S.len=round(num(S.len)*f2,2); S.w=round(num(S.w)*f2,2); S.h=round(num(S.h)*f2,2);
+    S.units=b.dataset.v; syncUI();
+  });
+  $("reset").addEventListener("click",function(){ S=JSON.parse(JSON.stringify(DEF)); syncUI(); toast("Reset to spreadsheet example"); });
+
+  // NPS options
+  NPS.forEach(function(p){ var o=document.createElement("option"); o.value=p[0]; o.textContent="NPS "+p[0]+'  ('+p[1]+'" OD)'; $("nps").appendChild(o); });
+
+  // ---- Job list ----
+  function describe(s,r){
+    var met=s.units==="met", u=met?"mm":"in", ub=met?"m":"ft";
+    var dims = s.shape==="plate" ? s.w+"×"+s.h+" "+ub : s.shape==="head" ? s.diam+" "+u+" "+(s.headtype==="hemi"?"hemi":s.headtype==="ell"?"2:1":"tori")+" head" : s.diam+" "+u+" × "+s.len+" "+ub;
+    return dims+(r.qty>1?" ×"+r.qty:"")+" · "+s.idx+" "+u+" @ "+s.spd+" "+u+"/s · "+s.cov+"% · "+s.eff+"% eff"+(r.crews>1?" · "+r.crews+" scanners":"");
+  }
+  function renderJob(){
+    var ul=$("joblist"); ul.innerHTML=""; var tot=0;
+    JOB.forEach(function(j,i){
+      tot+=j.total;
+      var li=document.createElement("li");
+      li.innerHTML='<span class="jn"></span><span class="jh"></span><button class="jx" type="button" aria-label="Remove">×</button><span class="js"></span>';
+      li.querySelector(".jn").textContent=j.name; li.querySelector(".jh").textContent=fmtHrs(j.total); li.querySelector(".js").textContent=j.desc+" · setup "+fmtHrs(j.setup);
+      li.querySelector(".jx").addEventListener("click",function(){ JOB.splice(i,1); save("aut-cmap-job",JOB); renderJob(); });
+      ul.appendChild(li);
+    });
+    $("jobempty").hidden = JOB.length>0; $("jobtotal").hidden = JOB.length===0;
+    var shift=Math.max(0.5,num(S.shift)||10);
+    $("jobtotalHrs").textContent = fmtHrs(tot);
+    $("jobtotalLbl").textContent = "Job total · "+JOB.length+" item"+(JOB.length===1?"":"s")+" · "+(tot/shift).toFixed(1)+" shifts @ "+shift+" hr";
+    save("aut-cmap-job",JOB);
+  }
+  $("add").addEventListener("click",function(){
+    var r=calc(S); var name=$("itemname").value.trim() || defaultName();
+    JOB.push({name:name, total:r.total, setup:r.setup, scan:r.scanHrs, desc:describe(S,r)});
+    $("itemname").value=""; renderJob(); toast("Added "+name);
+  });
+  function defaultName(){ var n={vessel:"Vessel shell",pipe:"Pipe",plate:"Plate",head:"Head"}[S.shape]; return n+" "+(JOB.length+1); }
+  $("clear").addEventListener("click",function(){
+    if(!JOB.length){ toast("Job list is already empty"); return; }
+    var b=this; if(b.dataset.arm==="1"){ JOB=[]; renderJob(); b.textContent="Clear job"; b.dataset.arm="0"; toast("Job cleared"); }
+    else { b.dataset.arm="1"; b.textContent="Tap again to confirm"; setTimeout(function(){ b.dataset.arm="0"; b.textContent="Clear job"; },3000); }
+  });
+  $("copy").addEventListener("click",function(){
+    var r=calc(S); var lines=["AUT corrosion mapping time estimate"];
+    if(JOB.length){ var tot=0; JOB.forEach(function(j){ tot+=j.total; lines.push("- "+j.name+": "+fmtHrs(j.total)+" ("+j.desc+")"); }); lines.push("Job total: "+fmtHrs(tot)+" = "+(tot/r.shift).toFixed(1)+" shifts @ "+r.shift+" hr"); }
+    else { lines.push("- "+defaultName()+": "+fmtHrs(r.total)+" ("+describe(S,r)+")"); lines.push("Raw scan "+fmtHrs(r.rawHrs)+", effective "+fmtHrs(r.scanHrs)+", setup "+fmtHrs(r.setup)+", "+r.shifts.toFixed(1)+" shifts @ "+r.shift+" hr"); }
+    var text=lines.join("\n");
+    var done=function(){ toast("Summary copied"); };
+    var fail=function(){ var ta=document.createElement("textarea"); ta.value=text; ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta); ta.select(); try{ document.execCommand("copy"); done(); }catch(e){ toast("Copy blocked. Long-press the breakdown to select it."); } document.body.removeChild(ta); };
+    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(done,fail); } else fail();
+  });
+
+  var tt; function toast(m){ var t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(tt); tt=setTimeout(function(){ t.classList.remove("show"); },1800); }
+
+  if (window.claude && window.claude.hot && window.claude.hot.snapshot) window.claude.hot.snapshot(function(){ return {S:S}; });
+  syncUI(); renderJob();
+})();
+</script>
+</body>
+</html>
