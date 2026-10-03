@@ -36,6 +36,7 @@
 }
 html{padding-top:env(safe-area-inset-top,0px);background:#172230}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.4;margin:0;-webkit-text-size-adjust:100%}
 button,input,select{font:inherit;color:inherit}
 .wrap{max-width:520px;margin:0 auto;padding-inline:16px;padding-block:0 32px;display:flex;flex-direction:column;gap:14px}
@@ -129,7 +130,7 @@ details.panel[open] summary{margin-bottom:10px}
       <button type="button" data-v="plate">Plate</button>
       <button type="button" data-v="head">Head</button>
     </div>
-    <div class="row" style="margin-top:12px">
+    <div class="row" id="pickrow" style="margin-top:12px">
       <div class="field" id="f-nps" hidden>
         <span class="lbl"><span>Pipe size</span><em>NPS</em></span>
         <select id="nps"></select>
@@ -194,7 +195,7 @@ details.panel[open] summary{margin-bottom:10px}
 
   <details class="panel" id="adv">
     <summary>Advanced</summary>
-    <div class="field">
+    <div class="field" id="f-dir">
       <span class="lbl"><span>Stroke direction</span></span>
       <div class="seg" id="dir" role="group" aria-label="Stroke direction">
         <button type="button" data-v="axial" aria-pressed="true">Axial strokes, index around</button>
@@ -331,6 +332,8 @@ details.panel[open] summary{margin-bottom:10px}
     $("f-diam").hidden = sh==="plate";
     $("f-len").hidden = !(sh==="vessel"||sh==="pipe");
     $("f-w").hidden = sh!=="plate"; $("f-h").hidden = sh!=="plate";
+    $("pickrow").hidden = !(sh==="pipe"||sh==="head");
+    $("f-dir").hidden = sh==="head";
     var dirBtns=$("dir").querySelectorAll("button");
     dirBtns[0].textContent = sh==="plate" ? "Vertical strokes, index across" : "Axial strokes, index around";
     dirBtns[1].textContent = sh==="plate" ? "Horizontal strokes, index up" : "Circ strokes, index along";
